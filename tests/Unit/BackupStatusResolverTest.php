@@ -59,4 +59,27 @@ it('marks a disk not present in monitor_backups as unmonitored', function (): vo
     expect($disk['monitored'])->toBeFalse();
     expect($disk['isHealthy'])->toBeNull();
     expect($disk['failureMessages'])->toBe([]);
+    expect($disk['unmonitoredReason'])->toContain('monitor_backups');
+});
+
+it('explains when the disk is missing from a non-empty monitor_backups', function (): void {
+    config(['backup.monitor_backups' => [[
+        'name' => 'testapp',
+        'disks' => ['archive'],
+        'health_checks' => [],
+    ]]]);
+
+    Storage::fake('local');
+    Storage::fake('archive');
+
+    $disk = app(BackupStatusResolver::class)->resolve()[0];
+
+    expect($disk['monitored'])->toBeFalse();
+    expect($disk['unmonitoredReason'])->toContain('monitored: archive');
+});
+
+it('has no unmonitored reason for a monitored disk', function (): void {
+    Storage::fake('local');
+
+    expect(app(BackupStatusResolver::class)->resolve()[0]['unmonitoredReason'])->toBeNull();
 });

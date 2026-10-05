@@ -66,6 +66,10 @@ usePoll(15000);
                     {{ disk.connectionError }}
                 </p>
 
+                <p v-if="!disk.monitored && disk.unmonitoredReason" class="text-sm text-gray-600 mb-4">
+                    {{ disk.unmonitoredReason }}
+                </p>
+
                 <ul v-if="disk.monitored && !disk.isHealthy" class="mb-4 space-y-1">
                     <li
                         v-for="failure in disk.failureMessages"

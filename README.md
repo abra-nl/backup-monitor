@@ -30,6 +30,64 @@ The `vendor:publish` step copies the addon's compiled CP assets into `public/ven
 
 Once installed, a super user will see a **Backup Monitor** item under **Settings** in the Control Panel nav. The page is restricted to super users, since it exposes storage/disk details and can trigger backup jobs.
 
+## Alerts for missing backups
+
+The page shows a disk as **Unhealthy** when a `monitor_backups` health check fails, but sending alerts is handled by spatie/laravel-backup itself. To be notified when no new backup has been created within a set time:
+
+1. **Add an age health check** to the monitor in `config/backup.php`:
+
+    ```php
+    'monitor_backups' => [
+        [
+            'name' => env('APP_NAME', 'laravel-backup'),
+            'disks' => ['local', 's3'],
+            'health_checks' => [
+                \Spatie\Backup\Tasks\Monitor\HealthChecks\MaximumAgeInDays::class => 1,
+            ],
+        ],
+    ],
+    ```
+
+    Every disk you want checked must be listed under `disks`. Disks that are only in `backup.destination.disks` show as **Not monitored** (with the reason on the card) and are never checked.
+
+2. **Schedule `backup:monitor`** (for example in `routes/console.php`). The check only runs, and notifications are only sent, when this command runs:
+
+    ```php
+    Schedule::command('backup:monitor')->hourly();
+    ```
+
+3. **Configure notifications** under `notifications` in `config/backup.php`. `UnhealthyBackupWasFoundNotification` is the one sent for a failed check; set its channels (`mail`, `slack`, ...) and the `notifiable` recipient.
+
+The Backup Monitor page polls every 15 seconds and reflects health on every load, so a stale backup appears there right away. Notifications arrive only when `backup:monitor` runs.
+
+### Thresholds shorter than a day
+
+`MaximumAgeInDays` only accepts whole days. For an hours threshold, add a small custom health check:
+
+```php
+use Spatie\Backup\BackupDestination\BackupDestination;
+use Spatie\Backup\Tasks\Monitor\HealthCheck;
+
+class MaximumAgeInHours extends HealthCheck
+{
+    public function __construct(protected int $hours = 24) {}
+
+    public function checkHealth(BackupDestination $backupDestination): void
+    {
+        $newest = $backupDestination->backups()->newest();
+
+        $this->failIf($newest === null, 'The backup destination is empty.');
+
+        $this->failIf(
+            $newest->date()->lt(now()->subHours($this->hours)),
+            "The latest backup ({$newest->date()->toDateTimeString()}) is older than {$this->hours} hours."
+        );
+    }
+}
+```
+
+Then register it in place of `MaximumAgeInDays`, e.g. `\App\Backup\MaximumAgeInHours::class => 6`.
+
 ## Testing
 
 See [TESTING.md](TESTING.md).

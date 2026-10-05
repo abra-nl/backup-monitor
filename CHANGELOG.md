@@ -2,6 +2,16 @@
 
 All notable changes to `abra-nl/backup-monitor` are documented in this file.
 
+## v1.1.0
+
+### Added
+
+- The CP page now explains why a disk is "Not monitored" (empty `monitor_backups`, disk missing from it, or a case-mismatched disk name).
+
+### Documentation
+
+- README section on alerting when no new backup is created within a set time, using spatie's `MaximumAgeInDays` / `backup:monitor`, plus an hours-based custom health check example.
+
 ## v1.0.0
 
 ### Added
